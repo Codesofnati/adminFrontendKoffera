@@ -25,6 +25,7 @@ import ImageUploader from "../../components/ImageUploader";
 import ProductManager from "../../components/ProductManager";
 import VideoUploader from "../../components/VideoUploader";
 import AdminSocial from "../../components/AdminSocial";
+import Setting from "@/components/Setting";
 
 const menu = [
   { key: "images", label: "Images", icon: ImageIcon, color: "from-green-800 to-green-900" },
@@ -153,7 +154,7 @@ export default function AdminPageContent() {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-green-900 to-green-700 bg-clip-text text-transparent">
-                  MAB Coffee
+                  Koffera Coffee
                 </h1>
                 <p className="text-xs text-green-600 font-medium">Admin Dashboard</p>
               </div>
@@ -333,6 +334,7 @@ export default function AdminPageContent() {
               {section === "products" && <ProductManager />}
               {section === "posts" && <AdminPostsPage />}
               {section === "social" && <AdminSocial />}
+              {section === "setting" && <Setting />}
             </motion.div>
           </AnimatePresence>
         </div>

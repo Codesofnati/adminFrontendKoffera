@@ -127,7 +127,7 @@ export default function AdminLogin() {
                 <div className="absolute inset-0 bg-white/20 rounded-2xl blur-xl"></div>
                 <div className="relative w-24 h-24 bg-white/10 rounded-2xl p-4 backdrop-blur-sm border-2 border-white/30">
                   <img 
-                    src="/navlogo.png" 
+                    src="/hero-logo.png" 
                     alt="Koffera Coffee Logo" 
                     className="w-full h-full object-contain filter brightness-0 invert" 
                   />
