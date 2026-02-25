@@ -238,7 +238,7 @@ export default function ServiceManager() {
                       {/* Mobile 3-dot menu */}
                       <div className="sm:hidden relative">
                         <button
-                          className="p-2 rounded-full hover:bg-gray-200 transition"
+                          className="p-2 rounded-full hover:bg-gray-200 transition " 
                           onClick={() => setMenuOpenId(menuOpenId === s.id ? null : s.id)}
                         >
                           ⋮

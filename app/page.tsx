@@ -1,10 +1,5 @@
-import AdminPage from "@/components/AdminPage";
-
+import { redirect } from 'next/navigation';
 
 export default function Home() {
- return(
-  <div>
-    <AdminPage/>
-  </div>
- )
+  redirect('/admin/login');
 }
