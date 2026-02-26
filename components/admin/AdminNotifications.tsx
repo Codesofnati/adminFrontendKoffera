@@ -42,11 +42,7 @@ export const AdminNotifications = () => {
   const router = useRouter();
 
   useEffect(() => {
-    loadNotifications();
-    
-    // Set up polling for new notifications (every 30 seconds)
-    const interval = setInterval(loadNotifications, 30000);
-    
+   
     // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
@@ -57,33 +53,10 @@ export const AdminNotifications = () => {
     document.addEventListener('mousedown', handleClickOutside);
     
     return () => {
-      clearInterval(interval);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
-  // components/admin/AdminNotifications.tsx
-const loadNotifications = async () => {
-  try {
-    setLoading(true);
-    console.log('Fetching admin notifications...');
-    const data = await postService.getAdminNotifications();
-    console.log('Received data:', data);
-    
-    if (data && data.notifications) {
-      console.log('Number of notifications:', data.notifications.length);
-      console.log('Notification types:', data.notifications.map((n: Notification) => n.type));
-      setNotifications(data.notifications);
-      setUnreadCount(data.notifications.filter((n: Notification) => !n.read).length);
-    } else {
-      console.log('No notifications array in response:', data);
-    }
-  } catch (error) {
-    console.error('Error loading notifications:', error);
-  } finally {
-    setLoading(false);
-  }
-};
 
   const markAsRead = async (id: number) => {
     try {

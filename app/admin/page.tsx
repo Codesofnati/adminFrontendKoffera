@@ -297,16 +297,16 @@ export default function AdminPageContent() {
               {/* Notifications Bell */}
               <AdminNotifications />
 
-              {/* New Post Button - Only visible when on posts section */}
+              {/* New Post Button - FIXED: Now visible on all devices */}
               {section === "posts" && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={openCreatePostModal}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:shadow-lg transition-all group"
+                  className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:shadow-lg transition-all group"
                 >
-                  <FiPlus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                  <span className="text-sm font-medium">New Story</span>
+                  <FiPlus className="w-5 h-5 sm:w-4 sm:h-4 group-hover:rotate-90 transition-transform" />
+                  <span className="hidden sm:inline text-sm font-medium">New Story</span>
                 </motion.button>
               )}
 
