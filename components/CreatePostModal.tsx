@@ -263,7 +263,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                       <input
                         {...register('title', { required: 'Title is required' })}
                         type="text"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                        className="w-full px-4 text-black py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="Give your story a captivating title..."
                       />
                       {errors.title && (
@@ -280,7 +280,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                       <textarea
                         {...register('description', { required: 'Description is required' })}
                         rows={6}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                        className="w-full px-4 text-black py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                         placeholder="Once upon a time..."
                       />
                       {errors.description && (
@@ -355,7 +355,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                             {...register('youtubeUrl')}
                             onChange={handleYoutubeUrlChange}
                             placeholder="https://www.youtube.com/watch?v=..."
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                            className="w-full px-4 text-black py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
                           />
                           
                           {youtubeUrl && (
@@ -435,7 +435,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                             {...register('videoCaption')}
                             type="text"
                             placeholder="Add a caption for your video..."
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            className="w-full text-black px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                           />
                         </motion.div>
                       )}

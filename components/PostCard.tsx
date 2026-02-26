@@ -21,9 +21,11 @@ import {
   FiMoreVertical,
   FiCamera,
   FiVideo,
-  FiAlertTriangle
+  FiAlertTriangle,
+  FiCheckCircle
 } from 'react-icons/fi';
 import { FaPlay, FaRegSmile, FaRegHeart, FaHeart, FaRegBookmark, FaBookmark } from 'react-icons/fa';
+import { GiCoffeeBeans } from 'react-icons/gi';
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -55,9 +57,11 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
   const [isMobile, setIsMobile] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState(false);
   
   const menuRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -230,7 +234,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
 
     return (
       <div className="px-3 sm:px-4">
-        <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 shadow-2xl border border-gray-200/20">
+        <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 shadow-2xl border border-gray-200/20 group">
           <div className="relative aspect-[4/3] sm:aspect-video w-full">
             {allMedia[activeImageIndex].type === 'video' ? (
               <div className="relative w-full h-full">
@@ -362,12 +366,20 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
   return (
     <>
       <motion.article
+        ref={cardRef}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-lg mb-4 sm:mb-6 border border-gray-100 overflow-hidden"
+        onHoverStart={() => setHoveredCard(true)}
+        onHoverEnd={() => setHoveredCard(false)}
+        className="relative max-w-3xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl mb-4 sm:mb-6 border-2 border-emerald-100 hover:shadow-2xl transition-all duration-300 overflow-hidden group"
       >
+        {/* Decorative corner accent */}
+        <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-200/50 to-transparent transform rotate-12 translate-x-8 -translate-y-8" />
+        </div>
+
         {/* Header */}
-        <div className="p-4 sm:p-6 pb-3 sm:pb-4">
+        <div className="p-4 sm:p-6 pb-3 sm:pb-4 relative z-10">
           <UserProfile />
         </div>
 
@@ -375,8 +387,8 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
         {hasMedia && <MediaGallery />}
 
         {/* Content */}
-        <div className="p-4 sm:p-6 pt-3 sm:pt-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 leading-tight">
+        <div className="p-4 sm:p-6 pt-3 sm:pt-4 relative z-10">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 leading-tight group-hover:text-emerald-700 transition-colors">
             {post.title}
           </h2>
 
@@ -395,9 +407,11 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between pt-3 border-t border-emerald-100">
             <div className="flex items-center gap-4 sm:gap-6">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={handleLike}
                 disabled={isLiking}
                 className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition-colors group"
@@ -407,13 +421,19 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                     post.likesCount > 0 ? 'fill-red-500 text-red-500' : ''
                   }`} />
                   {post.likesCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+                    />
                   )}
                 </div>
                 <span className="text-sm sm:text-base font-semibold">{post.likesCount}</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => {
                   setShowComments(!showComments);
                   setTimeout(() => commentInputRef.current?.focus(), 100);
@@ -422,23 +442,31 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
               >
                 <FiMessageCircle className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:scale-110" />
                 <span className="text-sm sm:text-base font-semibold">{post.comments?.length || 0}</span>
-              </button>
+              </motion.button>
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="p-2 text-gray-400 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 text-gray-400 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all"
+              >
                 <FiShare2 className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setIsBookmarked(!isBookmarked)}
                 className="p-2 text-gray-400 hover:text-emerald-600 rounded-xl hover:bg-emerald-50 transition-all"
               >
                 <FiBookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${isBookmarked ? 'fill-emerald-600 text-emerald-600' : ''}`} />
-              </button>
+              </motion.button>
 
               <div className="relative" ref={menuRef}>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setShowMenu(!showMenu)}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-all"
                 >
@@ -447,7 +475,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                   ) : (
                     <FiMoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
-                </button>
+                </motion.button>
 
                 <AnimatePresence>
                   {showMenu && (
@@ -455,7 +483,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      className="absolute right-0 bottom-3 mt-2 w-36 sm:w-40 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                      className="absolute right-0 bottom-3 mt-2 w-36 sm:w-40 bg-white rounded-xl shadow-xl border-2 border-emerald-100 overflow-hidden z-50"
                     >
                       <button
                         onClick={() => {
@@ -482,7 +510,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="border-t border-gray-100 bg-gradient-to-b from-gray-50 to-white"
+              className="border-t border-emerald-100 bg-gradient-to-b from-emerald-50/30 to-white"
             >
               <div className="p-4 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between">
@@ -490,18 +518,25 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                     <FiMessageCircle className="text-emerald-600" />
                     Responses ({post.comments?.length || 0})
                   </h4>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setShowComments(false)}
                     className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                   >
                     <FiX className="w-4 h-4 text-gray-500" />
-                  </button>
+                  </motion.button>
                 </div>
 
                 <div className="space-y-3 max-h-60 sm:max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                   {post.comments && post.comments.length > 0 ? (
                     post.comments.map((comment) => (
-                      <div key={comment.id} className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100">
+                      <motion.div
+                        key={comment.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-emerald-100"
+                      >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-500 flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-md">
@@ -520,7 +555,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                         <p className="text-gray-600 text-xs sm:text-sm ml-9 sm:ml-10">
                           {comment.comment}
                         </p>
-                      </div>
+                      </motion.div>
                     ))
                   ) : (
                     <div className="text-center py-8">
@@ -533,13 +568,13 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                   )}
                 </div>
 
-                <form onSubmit={handleSubmitComment} className="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <form onSubmit={handleSubmitComment} className="space-y-3 bg-white p-4 rounded-xl shadow-sm border-2 border-emerald-100">
                   <input
                     type="text"
                     placeholder="Your name"
                     value={commentName}
                     onChange={(e) => setCommentName(e.target.value)}
-                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm border-2 border-emerald-200 rounded-lg focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500 transition bg-white"
                     required
                   />
                   <div className="relative">
@@ -549,15 +584,17 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       rows={2}
-                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50 pr-12"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm border-2 border-emerald-200 rounded-lg focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500 transition bg-white pr-12"
                       required
                     />
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       type="submit"
-                      className="absolute right-2 bottom-2 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+                      className="absolute right-2 bottom-2 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-md hover:shadow-lg"
                     >
                       Post
-                    </button>
+                    </motion.button>
                   </div>
                 </form>
               </div>
@@ -580,7 +617,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-2 border-red-100"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-4 mb-4">
@@ -598,18 +635,22 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
               </p>
               
               <div className="flex gap-3">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleDelete}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl hover:shadow-lg transition-all font-medium"
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all font-medium"
                 >
                   Delete
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
@@ -658,12 +699,14 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                   className="object-contain max-h-[90vh] rounded-2xl shadow-2xl"
                 />
               )}
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setSelectedMedia(null)}
                 className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full p-3 transition-all border border-white/20"
               >
                 <FiX className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
+              </motion.button>
             </motion.div>
           </motion.div>
         )}

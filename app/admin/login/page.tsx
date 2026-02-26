@@ -1,3 +1,4 @@
+// app/admin/login/page.tsx
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ import {
   EnvelopeIcon
 } from "@heroicons/react/24/outline";
 import { Award, Leaf } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function AdminLogin() {
   const supabase = createSupabaseClient();
@@ -25,71 +27,54 @@ export default function AdminLogin() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Specific error messages based on error type
-  const getErrorMessage = (errorMessage: string): string => {
-    if (errorMessage.includes("Invalid login credentials")) {
-      return "Incorrect email or password. Please try again.";
-    }
-    if (errorMessage.includes("Email not confirmed")) {
-      return "Please verify your email address before logging in.";
-    }
-    if (errorMessage.includes("Invalid email")) {
-      return "Please enter a valid email address.";
-    }
-    if (errorMessage.includes("Password should be at least 6 characters")) {
-      return "Password must be at least 6 characters long.";
-    }
-    if (errorMessage.includes("rate limit")) {
-      return "Too many login attempts. Please try again later.";
-    }
-    if (errorMessage.includes("network")) {
-      return "Network error. Please check your connection.";
-    }
-    return errorMessage || "An unexpected error occurred. Please try again.";
-  };
-
-  const validateForm = (): boolean => {
-    if (!email.trim()) {
-      setError("Email is required");
-      return false;
-    }
-    if (!email.includes('@') || !email.includes('.')) {
-      setError("Please enter a valid email address");
-      return false;
-    }
-    if (!password) {
-      setError("Password is required");
-      return false;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return false;
-    }
-    return true;
-  };
+  // Admin email constant
+  const ADMIN_EMAIL = 'admin@coffee.com';
 
   const handleLogin = async () => {
     setError("");
     
-    // Client-side validation first
-    if (!validateForm()) {
+    if (!email.trim() || !password) {
+      setError("Email and password are required");
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ 
-      email: email.trim(), 
-      password 
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
+      });
 
-    setLoading(false);
+      if (error) throw error;
 
-    if (error) {
-      setError(getErrorMessage(error.message));
-      setPassword(""); // Clear password for security
-    } else {
+      // Check if user is admin
+      if (data.user?.email !== ADMIN_EMAIL) {
+        // Sign out if not admin
+        await supabase.auth.signOut();
+        setError("Unauthorized access. Admin only.");
+        return;
+      }
+
+      toast.success('Welcome back, Admin!');
       router.push("/admin");
+      router.refresh();
+      
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      // Specific error messages
+      if (error.message.includes("Invalid login credentials")) {
+        setError("Incorrect email or password. Please try again.");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Please verify your email address before logging in.");
+      } else {
+        setError(error.message || "An unexpected error occurred");
+      }
+      
+      setPassword(""); // Clear password for security
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,7 +86,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Elements - Same as other components */}
+      {/* Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-white"></div>
       <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-green-300/40 to-lime-400/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tr from-lime-300/35 to-green-400/25 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
@@ -174,7 +159,7 @@ export default function AdminLogin() {
                   </div>
                   <input
                     type="email"
-                    placeholder="admin@mabcoffee.com"
+                    placeholder="admin@coffee.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyPress={handleKeyPress}
@@ -216,17 +201,11 @@ export default function AdminLogin() {
                 </div>
               </div>
 
-              {/* Forgot Password Hint */}
-              <div className="text-right">
-                <button 
-                  type="button"
-                  className="text-sm text-green-600 hover:text-green-800 font-medium"
-                  onClick={() => {
-                    setError("Please contact your administrator to reset your password.");
-                  }}
-                >
-                  Forgot password?
-                </button>
+              {/* Admin Email Hint */}
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  <strong>Admin Access:</strong> Use admin@coffee.com
+                </p>
               </div>
             </div>
 
@@ -260,8 +239,6 @@ export default function AdminLogin() {
             </div>
           </div>
         </div>
-
-        
       </motion.div>
     </div>
   );
