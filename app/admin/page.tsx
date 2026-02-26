@@ -342,7 +342,7 @@ export default function AdminPageContent() {
         </header>
 
         {/* Dynamic Content Area */}
-        <div className="p-6">
+        <div className="">
           <AnimatePresence mode="wait">
             <motion.div
               key={section}
