@@ -22,13 +22,28 @@ import {
   FiCamera,
   FiVideo,
   FiAlertTriangle,
-  FiCheckCircle
+  FiCheckCircle,
+  FiSend,
+  FiMail
 } from 'react-icons/fi';
 import { FaPlay, FaRegSmile, FaRegHeart, FaHeart, FaRegBookmark, FaBookmark } from 'react-icons/fa';
 import { GiCoffeeBeans } from 'react-icons/gi';
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
+import { postService } from '@/services/postService';
+
+interface Comment {
+  id: number;
+  post_id: number;
+  name: string;
+  comment: string;
+  created_at: string;
+  email?: string;
+  is_admin_reply?: boolean;
+  parent_comment_id?: number | null;
+  replies?: Comment[];
+}
 
 interface PostCardProps {
   post: Post;
@@ -38,17 +53,19 @@ interface PostCardProps {
   onDeleteComment: (postId: number, commentId: number) => void;
 }
 
-// User profile data
-const USER = {
+// Admin user data
+const ADMIN_USER = {
   name: "Firaol K. Reggasa",
   image: "https://udyjiyiuzaxognnkzxjg.supabase.co/storage/v1/object/public/images/founder/founder-1769290259573.jpg",
-  role: "Founder"
+  role: "Founder",
+  email: "firaol@coffee.com",
+  isAdmin: true
 };
 
-export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps) => {
+export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment }: PostCardProps) => {
   const [isLiking, setIsLiking] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [commentName, setCommentName] = useState('');
+  // Removed commentName state - now only using commentText
   const [commentText, setCommentText] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<{ type: 'image' | 'video', url: string } | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -58,10 +75,22 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [hoveredCard, setHoveredCard] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState<{ [key: number]: string }>({});
+  const [comments, setComments] = useState<Comment[]>(post.comments || []);
+  const [showCommentDeleteModal, setShowCommentDeleteModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
   
   const menuRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const commentMenuRef = useRef<HTMLDivElement>(null);
+  const [activeCommentMenu, setActiveCommentMenu] = useState<number | null>(null);
+
+  // Update comments when post prop changes
+  useEffect(() => {
+    setComments(post.comments || []);
+  }, [post.comments]);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -73,16 +102,269 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Close menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
       }
+      if (commentMenuRef.current && !commentMenuRef.current.contains(event.target as Node)) {
+        setActiveCommentMenu(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Build comment tree from flat comments array
+  const buildCommentTree = (comments: any[]): Comment[] => {
+    const map = new Map<number, Comment>();
+    const roots: Comment[] = [];
+
+    // First pass: create map of all comments
+    comments.forEach((comment) => {
+      map.set(comment.id, { 
+        ...comment, 
+        replies: [],
+        is_admin_reply: comment.is_admin_reply || false 
+      });
+    });
+
+    // Second pass: organize into tree
+    map.forEach((comment) => {
+      if (comment.parent_comment_id && map.has(comment.parent_comment_id)) {
+        const parent = map.get(comment.parent_comment_id);
+        if (parent) {
+          parent.replies = parent.replies || [];
+          parent.replies.push(comment);
+        }
+      } else {
+        roots.push(comment);
+      }
+    });
+
+    // Sort roots by date (newest first)
+    return roots.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  };
+
+  const handleReplySubmit = async (commentId: number) => {
+    if (!replyText[commentId]?.trim()) {
+      toast.error('Please write a reply');
+      return;
+    }
+
+    try {
+      // Use the replyToComment function from postService
+      const response = await postService.replyToComment(commentId, replyText[commentId]);
+      
+      // Update local comments state with the new reply
+      if (response && response.reply) {
+        setComments(prevComments => [...prevComments, response.reply]);
+      }
+      
+      setReplyText((prev) => ({ ...prev, [commentId]: '' }));
+      setReplyingTo(null);
+      
+      toast.success(
+        <div className="flex items-center gap-2">
+          <FiSend className="w-4 h-4 text-emerald-600" />
+          <span>Reply sent as Admin</span>
+        </div>,
+        {
+          icon: '👑',
+          style: {
+            background: 'linear-gradient(to right, #d1fae5, #a7f3d0)',
+            color: '#065f46',
+            border: '1px solid #a7f3d0',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Reply error:', error);
+      toast.error('Failed to send reply');
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!commentToDelete) return;
+
+    try {
+      await onDeleteComment(post.id, commentToDelete.id);
+      
+      // Remove the deleted comment from state
+      setComments(prevComments => {
+        const removeComment = (comments: Comment[]): Comment[] => {
+          return comments.filter(c => {
+            if (c.id === commentToDelete.id) return false;
+            if (c.replies) {
+              c.replies = removeComment(c.replies);
+            }
+            return true;
+          });
+        };
+        return removeComment([...prevComments]);
+      });
+      
+      setShowCommentDeleteModal(false);
+      setCommentToDelete(null);
+      
+      
+    } catch (error) {
+      toast.error('Failed to delete comment');
+    }
+  };
+
+  const CommentComponent = ({ comment, depth = 0 }: { comment: Comment; depth?: number }) => {
+    const hasReplies = comment.replies && comment.replies.length > 0;
+
+    return (
+      <motion.div
+        id={`comment-${comment.id}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`mb-3 transition-all duration-300 ${depth > 0 ? 'ml-8' : ''}`}
+      >
+        <div className={`bg-white rounded-xl p-3 sm:p-4 shadow-sm border ${
+          comment.is_admin_reply 
+            ? 'border-emerald-200 bg-emerald-50/30' 
+            : 'border-emerald-100'
+        } hover:shadow-md transition-shadow relative`}>
+          
+          {/* Comment Header with Delete Button for Admin */}
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`rounded-full flex items-center justify-center text-white font-semibold shadow-md ${
+                depth === 0 ? 'w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm' : 'w-6 h-6 text-[10px] sm:text-xs'
+              } ${
+                comment.is_admin_reply 
+                  ? 'bg-gradient-to-r from-emerald-700 to-green-800' 
+                  : 'bg-gradient-to-r from-emerald-500 to-green-500'
+              }`}>
+                {comment.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-800 text-xs sm:text-sm">
+                    {comment.name}
+                  </span>
+                  {comment.is_admin_reply && (
+                    <span className="px-2 py-0.5 text-[8px] sm:text-[10px] bg-emerald-100 text-emerald-700 rounded-full font-medium">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-400 mt-0.5">
+                  <FiClock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  <span>{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
+                  {comment.email && (
+                    <>
+                      <span>•</span>
+                      <FiMail className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <span className="truncate max-w-[100px]">{comment.email}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Delete button for admin */}
+            {ADMIN_USER.isAdmin && (
+              <div className="relative">
+                <button
+                  onClick={() => setActiveCommentMenu(activeCommentMenu === comment.id ? null : comment.id)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FiMoreVertical className="w-4 h-4 text-gray-400" />
+                </button>
+                
+                <AnimatePresence>
+                  {activeCommentMenu === comment.id && (
+                    <motion.div
+                      ref={commentMenuRef}
+                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                      className="absolute right-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50"
+                    >
+                      <button
+                        onClick={() => {
+                          setActiveCommentMenu(null);
+                          setCommentToDelete(comment);
+                          setShowCommentDeleteModal(true);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
+
+          {/* Comment Text */}
+          <p className="text-gray-600 text-xs sm:text-sm ml-7 sm:ml-9">
+            {comment.comment}
+          </p>
+
+          {/* Reply button and form - Only for non-admin comments */}
+          {!comment.is_admin_reply && (
+            <div className="mt-3 ml-7 sm:ml-9">
+              {replyingTo === comment.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={replyText[comment.id] || ''}
+                    onChange={(e) => setReplyText(prev => ({ ...prev, [comment.id]: e.target.value }))}
+                    placeholder={`Reply to ${comment.name}...`}
+                    className="flex-1 text-black px-3 py-2 text-sm border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleReplySubmit(comment.id)}
+                    className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm rounded-lg hover:shadow-lg transition-all flex items-center gap-1"
+                  >
+                    <FiSend className="w-4 h-4" />
+                    Send
+                  </button>
+                  <button
+                    onClick={() => {
+                      setReplyingTo(null);
+                      setReplyText(prev => ({ ...prev, [comment.id]: '' }));
+                    }}
+                    className="px-3 py-2 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setReplyingTo(comment.id)}
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                >
+                  <FiMessageCircle className="w-3 h-3" />
+                  Reply as Admin
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Nested replies */}
+          {hasReplies && (
+            <div className="mt-3 space-y-2">
+              {comment.replies?.map((reply) => (
+                <CommentComponent key={reply.id} comment={reply} depth={depth + 1} />
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   const getYoutubeEmbedUrl = (url: string): string | undefined => {
     if (!url) return undefined;
@@ -98,7 +380,6 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
     if (isLiking) return;
     setIsLiking(true);
     
-    // Optimistic update
     const wasLiked = post.likesCount > 0;
     
     try {
@@ -124,16 +405,17 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
     }
   };
 
+  // Updated handleSubmitComment to use ADMIN_USER.name instead of commentName
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentName.trim() || !commentText.trim()) {
-      toast.error('Please fill in all fields');
+    if (!commentText.trim()) {
+      toast.error('Please write a comment');
       return;
     }
     
     try {
-      await onAddComment(post.id, commentName, commentText);
-      setCommentName('');
+      // Use ADMIN_USER.name instead of commentName
+      await onAddComment(post.id, ADMIN_USER.name, commentText);
       setCommentText('');
       
       toast.success(
@@ -204,8 +486,8 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-500 rounded-full blur-md opacity-70" />
         <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden ring-2 ring-white shadow-xl">
           <Image
-            src={USER.image}
-            alt={USER.name}
+            src={ADMIN_USER.image}
+            alt={ADMIN_USER.name}
             fill
             className="object-cover"
           />
@@ -215,10 +497,10 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
       <div className="flex-1">
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <h3 className="font-bold text-gray-900 text-base sm:text-lg tracking-tight">
-            {USER.name}
+            {ADMIN_USER.name}
           </h3>
           <span className="self-start sm:self-auto px-3 py-1 text-[10px] sm:text-xs bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 rounded-full font-medium shadow-sm border border-emerald-200">
-            {USER.role}
+            {ADMIN_USER.role}
           </span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
@@ -363,6 +645,9 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
     );
   };
 
+  // Build comment tree from flat comments
+  const commentTree = buildCommentTree(comments);
+
   return (
     <>
       <motion.article
@@ -441,7 +726,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                 className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition-colors group"
               >
                 <FiMessageCircle className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:scale-110" />
-                <span className="text-sm sm:text-base font-semibold">{post.comments?.length || 0}</span>
+                <span className="text-sm sm:text-base font-semibold">{comments.length}</span>
               </motion.button>
             </div>
 
@@ -516,46 +801,26 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm sm:text-base font-semibold text-gray-800 flex items-center gap-2">
                     <FiMessageCircle className="text-emerald-600" />
-                    Responses ({post.comments?.length || 0})
+                    Responses ({comments.length})
                   </h4>
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowComments(false)}
+                    onClick={() => {
+                      setShowComments(false);
+                      setReplyingTo(null);
+                    }}
                     className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                   >
                     <FiX className="w-4 h-4 text-gray-500" />
                   </motion.button>
                 </div>
 
+                {/* Comments thread */}
                 <div className="space-y-3 max-h-60 sm:max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                  {post.comments && post.comments.length > 0 ? (
-                    post.comments.map((comment) => (
-                      <motion.div
-                        key={comment.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-emerald-100"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-500 flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-md">
-                              {comment.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <span className="font-semibold text-gray-800 text-xs sm:text-sm">
-                                {comment.name}
-                              </span>
-                              <span className="text-[10px] sm:text-xs text-gray-400 ml-2">
-                                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-gray-600 text-xs sm:text-sm ml-9 sm:ml-10">
-                          {comment.comment}
-                        </p>
-                      </motion.div>
+                  {commentTree.length > 0 ? (
+                    commentTree.map((comment) => (
+                      <CommentComponent key={comment.id} comment={comment} />
                     ))
                   ) : (
                     <div className="text-center py-8">
@@ -568,19 +833,12 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                   )}
                 </div>
 
+                {/* Comment form - Removed name input field */}
                 <form onSubmit={handleSubmitComment} className="space-y-3 bg-white p-4 rounded-xl shadow-sm border-2 border-emerald-100">
-                  <input
-                    type="text"
-                    placeholder="Your name"
-                    value={commentName}
-                    onChange={(e) => setCommentName(e.target.value)}
-                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm border-2 border-emerald-200 rounded-lg focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500 transition bg-white"
-                    required
-                  />
                   <div className="relative">
                     <textarea
                       ref={commentInputRef}
-                      placeholder="Write a comment..."
+                      placeholder="Write a comment as Admin..."
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       rows={2}
@@ -603,7 +861,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
         </AnimatePresence>
       </motion.article>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Post Confirmation Modal */}
       <AnimatePresence>
         {showDeleteModal && (
           <motion.div
@@ -647,6 +905,71 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment }: PostCardProps
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleDelete}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all font-medium"
+                >
+                  Delete
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Comment Confirmation Modal */}
+      <AnimatePresence>
+        {showCommentDeleteModal && commentToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowCommentDeleteModal(false);
+              setCommentToDelete(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-2 border-red-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <FiAlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Delete Comment</h3>
+                  <p className="text-sm text-gray-500">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this comment?
+                {commentToDelete.replies && commentToDelete.replies.length > 0 && (
+                  <span className="block mt-2 text-sm text-red-500">
+                    This comment has {commentToDelete.replies.length} repl{commentToDelete.replies.length === 1 ? 'y' : 'ies'}. All replies will also be deleted.
+                  </span>
+                )}
+              </p>
+              
+              <div className="flex gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowCommentDeleteModal(false);
+                    setCommentToDelete(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeleteComment}
                   className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all font-medium"
                 >
                   Delete

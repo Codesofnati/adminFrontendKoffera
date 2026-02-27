@@ -32,7 +32,6 @@ interface Notification {
   created_at: string;
 }
 
-
 export const AdminNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -42,7 +41,11 @@ export const AdminNotifications = () => {
   const router = useRouter();
 
   useEffect(() => {
-   
+    loadNotifications();
+    
+    // Set up polling for new notifications (every 30 seconds)
+    const interval = setInterval(loadNotifications, 30000);
+    
     // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
@@ -53,10 +56,20 @@ export const AdminNotifications = () => {
     document.addEventListener('mousedown', handleClickOutside);
     
     return () => {
+      clearInterval(interval);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
+  const loadNotifications = async () => {
+    try {
+      const data = await postService.getAdminNotifications();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.notifications?.filter((n: Notification) => !n.read).length || 0);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
 
   const markAsRead = async (id: number) => {
     try {
@@ -82,26 +95,15 @@ export const AdminNotifications = () => {
       toast.error('Failed to mark all as read');
     }
   };
-  
 
-  // components/admin/AdminNotifications.tsx
-// Update the handleNotificationClick function
-
-// components/admin/AdminNotifications.tsx
-// Update the handleNotificationClick function
-
-const handleNotificationClick = async (notification: Notification) => {
-  try {
+  const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
     setShowDropdown(false);
     
-    // Navigate to the post page - the page will handle if post is missing
+    // Navigate to the post with comments
     router.push(`/admin/posts/${notification.post_id}?comment=${notification.comment_id || ''}`);
-    
-  } catch (error) {
-    console.error('Error handling notification click:', error);
-  }
-};
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'like':
@@ -157,7 +159,7 @@ const handleNotificationClick = async (notification: Notification) => {
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50"
+            className="absolute -right-25 md:right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50"
           >
             {/* Header */}
             <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
