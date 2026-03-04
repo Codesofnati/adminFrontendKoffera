@@ -115,16 +115,23 @@ export default function AdminPostsPage() {
     }
   };
 
-  const handleLikePost = async (id: number) => {
-    try {
-      const { likesCount } = await postService.likePost(id);
-      setPosts(posts.map(post => 
-        post.id === id ? { ...post, likesCount } : post
-      ));
-    } catch (error) {
-      toast.error('Failed to like story');
-    }
-  };
+ const handleLikePost = async (id: number) => {
+  try {
+    const response = await postService.likePost(id);
+    // Update posts in state
+    setPosts(posts.map(post => 
+      post.id === id ? { 
+        ...post, 
+        likesCount: response.likesCount 
+      } : post
+    ));
+    // Return the response so PostCard can use it
+    return response;
+  } catch (error) {
+    toast.error('Failed to like story');
+    throw error;
+  }
+};
 
   const handleAddComment = async (postId: number, name: string, comment: string) => {
     try {

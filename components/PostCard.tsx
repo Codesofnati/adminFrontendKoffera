@@ -65,7 +65,6 @@ const ADMIN_USER = {
 export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment }: PostCardProps) => {
   const [isLiking, setIsLiking] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  // Removed commentName state - now only using commentText
   const [commentText, setCommentText] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<{ type: 'image' | 'video', url: string } | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -81,6 +80,10 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
   const [showCommentDeleteModal, setShowCommentDeleteModal] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
   
+  // Add state for like status
+  const [hasLiked, setHasLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.likesCount || 0);
+  
   const menuRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,26 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
   useEffect(() => {
     setComments(post.comments || []);
   }, [post.comments]);
+
+  // Update likes when post prop changes
+  useEffect(() => {
+    setLikesCount(post.likesCount || 0);
+  }, [post.likesCount]);
+
+  // Check if current user has liked this post
+  useEffect(() => {
+    const checkIfLiked = async () => {
+      try {
+        const liked = await postService.checkIfUserLikedPost(post.id);
+        setHasLiked(liked);
+      } catch (error) {
+        console.error('Error checking like status:', error);
+        setHasLiked(false);
+      }
+    };
+    
+    checkIfLiked();
+  }, [post.id]);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -380,24 +403,14 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
     if (isLiking) return;
     setIsLiking(true);
     
-    const wasLiked = post.likesCount > 0;
-    
     try {
       await onLike(post.id);
-      toast.success(
-        <div className="flex items-center gap-2">
-          <FiHeart className="w-4 h-4 text-red-500" />
-          <span>Post {wasLiked ? 'unliked' : 'liked'} successfully!</span>
-        </div>,
-        {
-          icon: '❤️',
-          style: {
-            background: 'linear-gradient(to right, #fecaca, #fee2e2)',
-            color: '#991b1b',
-            border: '1px solid #fecaca',
-          },
-        }
-      );
+      // Toggle local like status
+      setHasLiked(!hasLiked);
+      // Update likes count locally (optimistic update)
+      setLikesCount(prev => hasLiked ? prev - 1 : prev + 1);
+      
+   
     } catch (error) {
       toast.error('Failed to update like');
     } finally {
@@ -703,9 +716,9 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
               >
                 <div className="relative">
                   <FiHeart className={`w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:scale-110 ${
-                    post.likesCount > 0 ? 'fill-red-500 text-red-500' : ''
+                    hasLiked ? 'fill-red-500 text-red-500' : ''
                   }`} />
-                  {post.likesCount > 0 && (
+                  {hasLiked && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -713,7 +726,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
                     />
                   )}
                 </div>
-                <span className="text-sm sm:text-base font-semibold">{post.likesCount}</span>
+                <span className="text-sm sm:text-base font-semibold">{likesCount}</span>
               </motion.button>
 
               <motion.button

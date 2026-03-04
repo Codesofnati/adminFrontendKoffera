@@ -201,12 +201,7 @@ export default function AdminLogin() {
                 </div>
               </div>
 
-              {/* Admin Email Hint */}
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-xs text-blue-700">
-                  <strong>Admin Access:</strong> Use admin@coffee.com
-                </p>
-              </div>
+             
             </div>
 
             {/* Login Button */}

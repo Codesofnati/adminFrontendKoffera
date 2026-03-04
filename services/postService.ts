@@ -253,6 +253,18 @@ async getPost(id: number): Promise<Post> {
  // services/postService.ts
 
 // Admin: Get notifications
+// Add this to your postService.ts
+
+// Add this to your postService.ts file
+async checkIfUserLikedPost(postId: number): Promise<boolean> {
+  try {
+    const response = await api.get(`/posts/${postId}/liked`);
+    return response.data.liked;
+  } catch (error) {
+    console.error("Error checking if user liked post:", error);
+    return false;
+  }
+},
 
 async getAdminNotifications(): Promise<{ notifications: any[] }> {
   try {
