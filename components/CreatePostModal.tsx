@@ -14,9 +14,11 @@ import {
   FiLink,
   FiType,
   FiAlignLeft,
-  FiCheckCircle
+  FiCheckCircle,
+  FiMusic // For TikTok
 } from 'react-icons/fi';
-import { FaPlay, FaYoutube } from 'react-icons/fa';
+import { FaPlay, FaYoutube, FaTiktok } from 'react-icons/fa';
+import { SiTiktok } from 'react-icons/si';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
@@ -31,6 +33,7 @@ interface FormData {
   description: string;
   videoCaption: string;
   youtubeUrl: string;
+  tiktokUrl: string;
 }
 
 export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalProps) => {
@@ -38,7 +41,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [video, setVideo] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
-  const [videoType, setVideoType] = useState<'upload' | 'youtube' | null>(null);
+  const [videoType, setVideoType] = useState<'upload' | 'youtube' | 'tiktok' | null>(null);
   const [uploading, setUploading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   
@@ -50,11 +53,13 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
       title: '',
       description: '',
       videoCaption: '',
-      youtubeUrl: ''
+      youtubeUrl: '',
+      tiktokUrl: ''
     }
   });
 
   const youtubeUrl = watch('youtubeUrl');
+  const tiktokUrl = watch('tiktokUrl');
 
   if (!isOpen) return null;
 
@@ -104,6 +109,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
     setVideoPreview(URL.createObjectURL(file));
     setVideoType('upload');
     setValue('youtubeUrl', '');
+    setValue('tiktokUrl', '');
   };
 
   const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,6 +119,18 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
       setVideoType('youtube');
       setVideo(null);
       setVideoPreview(null);
+      setValue('tiktokUrl', '');
+    }
+  };
+
+  const handleTiktokUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setValue('tiktokUrl', url);
+    if (url) {
+      setVideoType('tiktok');
+      setVideo(null);
+      setVideoPreview(null);
+      setValue('youtubeUrl', '');
     }
   };
 
@@ -123,6 +141,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
     setVideo(null);
     setVideoPreview(null);
     setValue('youtubeUrl', '');
+    setValue('tiktokUrl', '');
     setVideoType(null);
     if (videoInputRef.current) {
       videoInputRef.current.value = '';
@@ -135,6 +154,18 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
     return (match && match[2].length === 11) ? `https://img.youtube.com/vi/${match[2]}/maxresdefault.jpg` : null;
   };
 
+  const getTiktokEmbedUrl = (url: string) => {
+    // TikTok oEmbed endpoint
+    return `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+  };
+
+  const getTiktokVideoId = (url: string) => {
+    // Extract TikTok video ID from URL
+    const regex = /\/video\/(\d+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!data.title || !data.description) {
       toast.error('Please fill in all fields');
@@ -143,14 +174,15 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
 
     try {
       setUploading(true);
-  const postData = {
-  title: data.title,
-  description: data.description,
-  images: images,
-  video: video || undefined,
-  youtubeUrl: data.youtubeUrl || undefined,   // camelCase
-  videoCaption: data.videoCaption || undefined
-};
+      const postData = {
+        title: data.title,
+        description: data.description,
+        images: images,
+        video: video || undefined,
+        youtubeUrl: data.youtubeUrl || undefined,
+        tiktokUrl: data.tiktokUrl || undefined,
+        videoCaption: data.videoCaption || undefined
+      };
       
       await postService.createPost(postData);
       
@@ -311,6 +343,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                           onClick={() => {
                             setVideoType('upload');
                             setValue('youtubeUrl', '');
+                            setValue('tiktokUrl', '');
                           }}
                           className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
                             videoType === 'upload' 
@@ -327,6 +360,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                             setVideoType('youtube');
                             setVideo(null);
                             setVideoPreview(null);
+                            setValue('tiktokUrl', '');
                           }}
                           className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
                             videoType === 'youtube' 
@@ -335,7 +369,24 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                           }`}
                         >
                           <FiYoutube className="w-5 h-5" />
-                          YouTube URL
+                          YouTube
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVideoType('tiktok');
+                            setVideo(null);
+                            setVideoPreview(null);
+                            setValue('youtubeUrl', '');
+                          }}
+                          className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                            videoType === 'tiktok' 
+                              ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg' 
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <SiTiktok className="w-5 h-5" />
+                          TikTok
                         </button>
                       </div>
 
@@ -379,6 +430,48 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                         </motion.div>
                       )}
 
+                      {/* TikTok URL Input */}
+                      {videoType === 'tiktok' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-gradient-to-r from-pink-50 to-purple-50 p-6 rounded-xl border-2 border-dashed border-pink-200"
+                        >
+                          <div className="flex items-center gap-3 mb-4">
+                            <SiTiktok className="w-6 h-6 text-pink-600" />
+                            <span className="font-medium text-gray-700">TikTok Link</span>
+                          </div>
+                          <input
+                            type="url"
+                            {...register('tiktokUrl')}
+                            onChange={handleTiktokUrlChange}
+                            placeholder="https://www.tiktok.com/@username/video/123456789"
+                            className="w-full px-4 text-black py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                          />
+                          
+                          {tiktokUrl && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 relative aspect-[9/16] max-h-96 rounded-lg overflow-hidden bg-black group mx-auto"
+                            >
+                              {/* TikTok doesn't provide a direct thumbnail API, so we show a placeholder */}
+                              <div className="w-full h-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
+                                <SiTiktok className="w-20 h-20 text-white opacity-50" />
+                              </div>
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="w-16 h-16 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+                                  <FaPlay className="w-6 h-6 text-white ml-1" />
+                                </div>
+                              </div>
+                              <div className="absolute bottom-2 left-2 right-2 bg-black/70 text-white text-xs p-2 rounded-lg backdrop-blur-sm">
+                                <p className="truncate">TikTok Video: {getTiktokVideoId(tiktokUrl)}</p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </motion.div>
+                      )}
+
                       {/* Video Upload */}
                       {videoType === 'upload' && (
                         <motion.div
@@ -395,7 +488,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                                 <FiFilm className="w-10 h-10 text-purple-600" />
                               </div>
                               <p className="text-gray-600 mb-2 font-medium">Click to upload a video</p>
-                              <p className="text-sm text-gray-400">MP4, WebM, or MOV (Max 100MB)</p>
+                              <p className="text-sm text-gray-400">MP4, WebM, or MOV (Max 50MB)</p>
                             </div>
                           ) : (
                             <div className="relative rounded-lg overflow-hidden bg-black group">
@@ -529,11 +622,9 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess }: CreatePostModalP
                           </div>
                           {videoType && (
                             <div className="flex items-center gap-2">
-                              {videoType === 'upload' ? (
-                                <FiVideo className="text-emerald-600" />
-                              ) : (
-                                <FiYoutube className="text-red-600" />
-                              )}
+                              {videoType === 'upload' && <FiVideo className="text-emerald-600" />}
+                              {videoType === 'youtube' && <FiYoutube className="text-red-600" />}
+                              {videoType === 'tiktok' && <SiTiktok className="text-pink-600" />}
                               <span>1 video</span>
                             </div>
                           )}

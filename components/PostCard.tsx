@@ -24,9 +24,11 @@ import {
   FiAlertTriangle,
   FiCheckCircle,
   FiSend,
-  FiMail
+  FiMail,
+  FiExternalLink
 } from 'react-icons/fi';
 import { FaPlay, FaRegSmile, FaRegHeart, FaHeart, FaRegBookmark, FaBookmark } from 'react-icons/fa';
+import { SiTiktok } from 'react-icons/si';
 import { GiCoffeeBeans } from 'react-icons/gi';
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
@@ -66,7 +68,7 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
   const [isLiking, setIsLiking] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [selectedMedia, setSelectedMedia] = useState<{ type: 'image' | 'video', url: string } | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<{ type: 'image' | 'video' | 'tiktok', url: string } | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -399,6 +401,18 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
     return undefined;
   };
 
+  // Function to get TikTok video ID
+  const getTiktokVideoId = (url: string): string | null => {
+    const regex = /\/video\/(\d+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
+  // Function to handle TikTok click
+  const handleTiktokClick = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleLike = async () => {
     if (isLiking) return;
     setIsLiking(true);
@@ -475,10 +489,11 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
 
   const formattedDate = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
 
-  // Build media array
+  // Build media array with TikTok support
   const allMedia = [
-    ...(post.youtubeUrl ? [{ type: 'video' as const, url: post.youtubeUrl, caption: post.videoCaption }] : []),
-    ...(post.videoUrl ? [{ type: 'video' as const, url: post.videoUrl, caption: post.videoCaption }] : []),
+    ...(post.youtubeUrl ? [{ type: 'video' as const, url: post.youtubeUrl, caption: post.videoCaption, isYoutube: true }] : []),
+    ...(post.tiktokUrl ? [{ type: 'tiktok' as const, url: post.tiktokUrl, caption: post.videoCaption, isTiktok: true }] : []),
+    ...(post.videoUrl ? [{ type: 'video' as const, url: post.videoUrl, caption: post.videoCaption, isYoutube: false }] : []),
     ...(post.images?.map(img => ({ type: 'image' as const, url: img.url })) || [])
   ];
 
@@ -524,139 +539,177 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
     </div>
   );
 
-  const MediaGallery = () => {
-    if (!hasMedia) return null;
+ const MediaGallery = () => {
+  if (!hasMedia) return null;
 
-    return (
-      <div className="px-3 sm:px-4">
-        <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 shadow-2xl border border-gray-200/20 group">
-          <div className="relative aspect-[4/3] sm:aspect-video w-full">
-            {allMedia[activeImageIndex].type === 'video' ? (
-              <div className="relative w-full h-full">
-                {allMedia[activeImageIndex].url.includes('youtube.com') || allMedia[activeImageIndex].url.includes('youtu.be') ? (
-                  <>
-                    <img
-                      src={`https://img.youtube.com/vi/${allMedia[activeImageIndex].url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2] || ''}/maxresdefault.jpg`}
-                      alt="Video thumbnail"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                    <div 
-                      onClick={() => setSelectedMedia(allMedia[activeImageIndex])}
-                      className="absolute inset-0 flex items-center justify-center cursor-pointer group"
-                    >
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
-                        <div className="relative w-14 h-14 sm:w-20 sm:h-20 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                          <FaPlay className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-600 ml-1" />
-                        </div>
+  const currentMedia = allMedia[activeImageIndex];
+
+  return (
+    <div className="px-3 sm:px-4">
+      <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 shadow-2xl border border-gray-200/20 group">
+        <div className="relative aspect-[4/3] sm:aspect-video w-full">
+          {currentMedia.type === 'tiktok' ? (
+            <div 
+              onClick={() => handleTiktokClick(currentMedia.url)}
+              className="relative w-full h-full bg-gradient-to-br from-emerald-500 to-green-600 cursor-pointer group"
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <SiTiktok className="w-20 h-20 text-white opacity-50 mx-auto mb-2" />
+                  <p className="text-white text-sm">Click to watch on TikTok</p>
+                </div>
+              </div>
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+                  <div className="relative w-14 h-14 sm:w-20 sm:h-20 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                    <FiExternalLink className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : currentMedia.type === 'video' ? (
+            <div className="relative w-full h-full">
+              {currentMedia.isYoutube ? (
+                <>
+                  <img
+                    src={`https://img.youtube.com/vi/${currentMedia.url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2] || ''}/maxresdefault.jpg`}
+                    alt="Video thumbnail"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div 
+                    onClick={() => setSelectedMedia(currentMedia)}
+                    className="absolute inset-0 flex items-center justify-center cursor-pointer group"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+                      <div className="relative w-14 h-14 sm:w-20 sm:h-20 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                        <FaPlay className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-600 ml-1" />
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <video 
-                    src={allMedia[activeImageIndex].url} 
-                    className="w-full h-full object-cover"
-                    onClick={() => setSelectedMedia(allMedia[activeImageIndex])}
-                  />
-                )}
-              </div>
-            ) : (
-              <>
-                <Image
-                  src={allMedia[activeImageIndex].url}
-                  alt="Post media"
-                  fill
-                  className="object-cover cursor-pointer"
-                  onClick={() => setSelectedMedia(allMedia[activeImageIndex])}
+                  </div>
+                </>
+              ) : (
+                <video 
+                  src={currentMedia.url} 
+                  className="w-full h-full object-cover"
+                  onClick={() => setSelectedMedia(currentMedia)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
-              </>
-            )}
-
-            {totalMedia > 1 && (
-              <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium border border-white/20 shadow-lg flex items-center gap-1">
-                <FiCamera className="w-3 h-3" />
-                {activeImageIndex + 1} / {totalMedia}
-              </div>
-            )}
-
-            {allMedia[activeImageIndex].type === 'video' && (
-              <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium border border-white/20 shadow-lg flex items-center gap-1">
-                <FiVideo className="w-3 h-3" />
-                Video
-              </div>
-            )}
-
-            {totalMedia > 1 && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 shadow-xl ${
-                    isMobile ? 'flex' : 'opacity-0 group-hover:opacity-100'
-                  }`}
-                >
-                  <FiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 shadow-xl ${
-                    isMobile ? 'flex' : 'opacity-0 group-hover:opacity-100'
-                  }`}
-                >
-                  <FiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Image
+                src={currentMedia.url}
+                alt="Post media"
+                fill
+                className="object-cover cursor-pointer"
+                onClick={() => setSelectedMedia(currentMedia)}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+            </>
+          )}
 
           {totalMedia > 1 && (
-            <div className="flex gap-2 p-3 overflow-x-auto scrollbar-hide bg-gradient-to-r from-gray-50 to-white border-t border-gray-200/50">
-              {allMedia.map((media, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveImageIndex(idx)}
-                  className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden transition-all ${
-                    idx === activeImageIndex 
-                      ? 'ring-3 ring-emerald-500 shadow-xl scale-105' 
-                      : 'opacity-60 hover:opacity-100 ring-1 ring-gray-300'
-                  }`}
-                >
-                  {media.type === 'video' ? (
-                    <div className="relative w-full h-full bg-gray-900">
-                      {media.url.includes('youtube.com') || media.url.includes('youtu.be') ? (
-                        <img
-                          src={`https://img.youtube.com/vi/${media.url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2] || ''}/default.jpg`}
-                          alt="Thumbnail"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                          <FiFilm className="w-5 h-5 text-white/70" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
-                          <FaPlay className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <Image
-                      src={media.url}
-                      alt="Thumbnail"
-                      fill
-                      className="object-cover"
-                    />
-                  )}
-                </button>
-              ))}
+            <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium border border-white/20 shadow-lg flex items-center gap-1">
+              <FiCamera className="w-3 h-3" />
+              {activeImageIndex + 1} / {totalMedia}
             </div>
           )}
+
+          {currentMedia.type === 'video' && (
+            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium border border-white/20 shadow-lg flex items-center gap-1">
+              <FiVideo className="w-3 h-3" />
+              {currentMedia.isYoutube ? 'YouTube' : 'Video'}
+            </div>
+          )}
+
+          {currentMedia.type === 'tiktok' && (
+            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-medium border border-white/20 shadow-lg flex items-center gap-1">
+              <SiTiktok className="w-3 h-3" />
+              <span>TikTok</span>
+            </div>
+          )}
+
+          {totalMedia > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                className={`absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 shadow-xl ${
+                  isMobile ? 'flex' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                <FiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 shadow-xl ${
+                  isMobile ? 'flex' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                <FiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            </>
+          )}
         </div>
+
+        {totalMedia > 1 && (
+          <div className="flex gap-2 p-3 overflow-x-auto scrollbar-hide bg-gradient-to-r from-gray-50 to-white border-t border-gray-200/50">
+            {allMedia.map((media, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveImageIndex(idx)}
+                className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden transition-all ${
+                  idx === activeImageIndex 
+                    ? 'ring-3 ring-emerald-500 shadow-xl scale-105' 
+                    : 'opacity-60 hover:opacity-100 ring-1 ring-gray-300'
+                }`}
+              >
+                {media.type === 'tiktok' ? (
+                  <div className="relative w-full h-full bg-gradient-to-br from-emerald-500 to-green-600">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <SiTiktok className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                ) : media.type === 'video' ? (
+                  <div className="relative w-full h-full bg-gray-900">
+                    {media.isYoutube ? (
+                      <img
+                        src={`https://img.youtube.com/vi/${media.url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2] || ''}/default.jpg`}
+                        alt="Thumbnail"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                        <FiFilm className="w-5 h-5 text-white/70" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <div className="w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
+                        <FaPlay className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Image
+                    src={media.url}
+                    alt="Thumbnail"
+                    fill
+                    className="object-cover"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   // Build comment tree from flat comments
   const commentTree = buildCommentTree(comments);
@@ -993,9 +1046,9 @@ export const PostCard = ({ post, onDelete, onLike, onAddComment, onDeleteComment
         )}
       </AnimatePresence>
 
-      {/* Media Modal */}
+      {/* Media Modal - For images and videos only, TikTok handled separately */}
       <AnimatePresence>
-        {selectedMedia && (
+        {selectedMedia && selectedMedia.type !== 'tiktok' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

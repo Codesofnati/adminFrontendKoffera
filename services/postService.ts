@@ -67,6 +67,7 @@ export interface Post {
   images?: { url: string }[];
   videoUrl?: string;
   youtubeUrl?: string;
+  tiktokUrl?: string; // Add this line
   videoCaption?: string;
   likesCount: number;
   comments: Comment[];
@@ -78,6 +79,7 @@ export interface CreatePostData {
   images: File[];
   video?: File;
   youtubeUrl?: string;
+  tiktokUrl?: string; // Add this line
   videoCaption?: string;
 }
 
@@ -119,21 +121,18 @@ export const postService = {
   },
 
   // Get single post
-  // services/postService.ts
-// Update the getPost method with better error handling
-
-async getPost(id: number): Promise<Post> {
-  try {
-    const response = await api.get(`/posts/${id}`);
-    return response.data;
-  } catch (error: any) {
-    console.error("Error in getPost:", error);
-    if (error.response?.status === 404) {
-      throw new Error('Post not found');
+  async getPost(id: number): Promise<Post> {
+    try {
+      const response = await api.get(`/posts/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error in getPost:", error);
+      if (error.response?.status === 404) {
+        throw new Error('Post not found');
+      }
+      throw error;
     }
-    throw error;
-  }
-},
+  },
 
   // Create post
   async createPost(data: CreatePostData): Promise<Post> {
@@ -151,6 +150,10 @@ async getPost(id: number): Promise<Post> {
 
       if (data.youtubeUrl) {
         formData.append('youtube_url', data.youtubeUrl);
+      }
+      
+      if (data.tiktokUrl) { // Add this block
+        formData.append('tiktok_url', data.tiktokUrl);
       }
       
       if (data.video) {
@@ -184,6 +187,7 @@ async getPost(id: number): Promise<Post> {
       if (data.description) formData.append('description', data.description);
       if (data.videoCaption) formData.append('video_caption', data.videoCaption);
       if (data.youtubeUrl) formData.append('youtube_url', data.youtubeUrl);
+      if (data.tiktokUrl) formData.append('tiktok_url', data.tiktokUrl); // Add this line
       if (data.video) formData.append('video', data.video);
       
       if (data.images) {
@@ -249,33 +253,28 @@ async getPost(id: number): Promise<Post> {
     }
   },
 
+  // Check if user liked post
+  async checkIfUserLikedPost(postId: number): Promise<boolean> {
+    try {
+      const response = await api.get(`/posts/${postId}/liked`);
+      return response.data.liked;
+    } catch (error) {
+      console.error("Error checking if user liked post:", error);
+      return false;
+    }
+  },
+
   // Admin: Get notifications
- // services/postService.ts
+  async getAdminNotifications(): Promise<{ notifications: any[] }> {
+    try {
+      const response = await api.get('/admin/notifications');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      throw error;
+    }
+  },
 
-// Admin: Get notifications
-// Add this to your postService.ts
-
-// Add this to your postService.ts file
-async checkIfUserLikedPost(postId: number): Promise<boolean> {
-  try {
-    const response = await api.get(`/posts/${postId}/liked`);
-    return response.data.liked;
-  } catch (error) {
-    console.error("Error checking if user liked post:", error);
-    return false;
-  }
-},
-
-async getAdminNotifications(): Promise<{ notifications: any[] }> {
-  try {
-    // Don't manually add token here - the interceptor handles it
-    const response = await api.get('/admin/notifications');
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
-    throw error;
-  }
-},
   // Admin: Mark notification as read
   async markNotificationAsRead(id: number): Promise<void> {
     try {
