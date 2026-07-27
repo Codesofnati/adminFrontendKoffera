@@ -99,7 +99,7 @@ export default function ProductManager() {
         setProductName("");
         setProductDesc("");
         fetchProducts();
-      } else showNotification('error', 'Failed to add product.');
+      } else showNotification('error', 'Failed to add product');
     } catch {
       showNotification('error', 'Error adding product.');
     } finally {

@@ -106,7 +106,7 @@ const handleUpload = async () => {
 
   try {
     const res = await fetch(
-      "https://newsss.koffera.workers.dev/upload",
+      "https://backend.koffera.workers.dev/upload",
       {
         method: "POST",
         body: formData,
